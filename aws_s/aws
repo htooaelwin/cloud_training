@@ -1,0 +1,33 @@
+create 3 EC2 instances 1 database all connect to vpc for private and exposed to 1 load balancer, for public with 1 CDN, and security group traffic allowed web services only
+
+
+
+
+aws ec2 create-subnet --vpc-id vpc-0b63c28c1f979b5fc --cidr-block 10.0.1.0/24 --availability-zone ap-southeast-1a --tag-specifications 'ResourceType=subnet,Tags=[{Key=Name,Value=test-private-subnet}]'
+
+
+aws ec2 create-security-group --group-name web-service-sg --description "Security group for web services" --vpc-id vpc-0b63c28c1f979b5fc
+
+aws ec2 authorize-security-group-ingress --group-id sg-0dc0a9ce6574d631f --protocol tcp --port 80 --cidr 0.0.0.0/0
+
+aws ec2 create-security-group --group-name db-sg --description "Security group for database server" --vpc-id vpc-0b63c28c1f979b5fc
+
+
+aws ec2 authorize-security-group-ingress --group-id sg-06ffc67ebce7be612 --protocol tcp --port 3306 --source-group sg-0dc0a9ce6574d631f
+
+aws ec2 run-instances --image-id ami-0c55b159cbfafe1f0 --count 3 --instance-type t2.micro --key-name my-key-pair --security-group-ids sg-0dc0a9ce6574d631f --subnet-id subnet-0ad5100791a727f3b --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=web-server}]' 'ResourceType=instance,Tags=[{Key=Environment,Value=Production}]' --user-data '#!/bin/bash
+apt-get update
+apt-get install -y apache2
+systemctl start apache2
+systemctl enable apache2'
+
+
+
+
+
+
+# list and delete instance from name tag 
+aws ec2 describe-instances --filters "Name=tag:Name,Values=web-server" --query 'Reservations[*].Instances[*].InstanceId' --output text 
+
+
+aws ec2 describe-instances --filters "Name=tag:Name,Values=web-server" --query 'Reservations[*].Instances[*].InstanceId' --output text | xargs aws ec2 terminate-instances --instance-ids

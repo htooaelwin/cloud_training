@@ -1,0 +1,9 @@
+    Create a VPC with a CIDR block of your choice using the create-vpc command.
+    Create an internet gateway using the create-internet-gateway command and attach it to your VPC using the attach-internet-gateway command.
+    Create public subnets in different availability zones using the create-subnet command. Tag the subnets with a name of your choice.
+    Create private subnets in different availability zones using the create-subnet command. Tag the subnets with a name of your choice.
+    Create a public-facing ELB using the create-load-balancer command. Specify the subnets you created in step 3 as the public subnets.
+    Create a private autoscaling group using the create-auto-scaling-group command. Specify the subnets you created in step 4 as the private subnets.
+    Create a target group for the autoscaling group using the create-target-group command. Specify the ELB you created in step 5 as the load balancer.
+    Attach the autoscaling group to the target group using the attach-load-balancer-target-groups command.
+    Ensure that traffic to the ELB is distributed to the instances in the autoscaling group by configuring health checks and load balancing rules.

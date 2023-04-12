@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# Set up internet gateway
+aws ec2 create-internet-gateway --tag-specifications 'ResourceType=internet-gateway,Tags=[{Key=Name,Value=my-igw}]'
+IGW_ID=$(aws ec2 describe-internet-gateways --filters "Name=tag:Name,Values=my-igw" --query "InternetGateways[0].InternetGatewayId" --output text)
+aws ec2 attach-internet-gateway --internet-gateway-id $IGW_ID --vpc-id $VPC_ID
+
+# Set up VPC
+aws ec2 create-vpc --cidr-block 10.0.0.0/16 --tag-specifications 'ResourceType=vpc,Tags=[{Key=Name,Value=my-vpc}]'
+VPC_ID=$(aws ec2 describe-vpcs --filters "Name=tag:Name,Values=my-vpc" --query "Vpcs[0].VpcId" --output text)
+aws ec2 create-subnet --vpc-id $VPC_ID --cidr-block 10.0.0.0/24 --availability-zone us-east-1a --tag-specifications 'ResourceType=subnet,Tags=[{Key=Name,Value=my-public-subnet}]'
+PUBLIC_SUBNET_ID=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=my-public-subnet" --query "Subnets[0].SubnetId" --output text)
+
+# Set up public-facing ELB
+aws elb create-load-balancer --load-balancer-name my-elb --listeners Protocol=HTTP,LoadBalancerPort=80,InstanceProtocol=HTTP,InstancePort=80 --subnets $PUBLIC_SUBNET_ID --security-groups $ELB_SG_ID
+ELB_DNS=$(aws elb describe-load-balancers --load-balancer-names my-elb --query "LoadBalancerDescriptions[0].DNSName" --output text)
+
+# Set up autoscaling group
+aws ec2 create-security-group --group-name my-asg-sg --description "Security group for autoscaling group" --vpc-id $VPC_ID
+ELB_SG_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=my-elb-sg" --query "SecurityGroups[0].GroupId" --output text)
+aws ec2 authorize-security-group-ingress --group-id $ELB_SG_ID --protocol tcp --port 80 --cidr 0.0.0.0/0
+aws autoscaling create-launch-configuration --launch-configuration-name my-launch-config --image-id ami-0123456789abcdef --instance-type t2.micro --security-groups $ASG_SG_ID --key-name my-key-pair
+aws autoscaling create-auto-scaling-group --auto-scaling-group-name my-asg --launch-configuration-name my-launch-config --availability-zone us-east-1a --min-size 2 --max-size 5 --load-balancer-names my-elb
+
+echo "ELB DNS: $ELB_DNS"
+
+
+
+#!/bin/bash
+
+# Set up internet gateway
+aws ec2 create-internet-gateway --tag-specifications 'ResourceType=internet-gateway,Tags=[{Key=Name,Value=my-igw}]'
+IGW_ID=$(aws ec2 describe-internet-gateways --filters "Name=tag:Name,Values=my-igw" --query "InternetGateways[0].InternetGatewayId" --output text)
+aws ec2 attach-internet-gateway --internet-gateway-id $IGW_ID --vpc-id $VPC_ID
+
+# Set up public-facing ELB
+aws elb create-load-balancer --load-balancer-name my-elb --subnets $PUBLIC_SUBNET_ID --security-groups $ELB_SG_ID
+ELB_DNS=$(aws elb describe-load-balancers --load-balancer-names my-elb --query "LoadBalancerDescriptions[0].DNSName" --output text)
+ELB_ZONE_ID=$(aws elb describe-load-balancers --load-balancer-names my-elb --query "LoadBalancerDescriptions[0].CanonicalHostedZoneNameID" --output text)
+
+# Set up private autoscaling group
+aws autoscaling create-launch-configuration --launch-configuration-name my-launch-config --image-id $AMI_ID --instance-type t2.micro --security-groups $ASG_SG_ID --key-name my-key-pair
+aws autoscaling create-auto-scaling-group --auto-scaling-group-name my-asg --launch-configuration-name my-launch-config --min-size 5 --max-size 10 --desired-capacity 5 --vpc-zone-identifier "$PRIVATE_SUBNET_ID_1,$PRIVATE_SUBNET_ID_2" --health-check-type ELB --health-check-grace-period 300 --load-balancer-names my-elb
