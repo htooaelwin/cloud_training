@@ -31,3 +31,8 @@ aws ec2 describe-instances --filters "Name=tag:Name,Values=web-server" --query '
 
 
 aws ec2 describe-instances --filters "Name=tag:Name,Values=web-server" --query 'Reservations[*].Instances[*].InstanceId' --output text | xargs aws ec2 terminate-instances --instance-ids
+
+
+# get ip addresses from instances in asg 
+
+aws autoscaling describe-auto-scaling-instances --query 'AutoScalingInstances[*].InstanceId' --output text | xargs -I {} aws ec2 describe-instances --instance-ids {} --query 'Reservations[*].Instances[*].PrivateIpAddress' --output text
