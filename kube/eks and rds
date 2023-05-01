@@ -1,0 +1,106 @@
+Apologies for the oversight in the CIDR and subnets configuration. Here's a corrected version of the steps with accurate CIDR blocks and subnets:
+
+1. Create a VPC with necessary subnets for EKS and RDS:
+
+```bash
+aws ec2 create-vpc --cidr-block 10.0.0.0/16 --region your-region
+
+# Save the VPC ID and create subnets for EKS and RDS:
+aws ec2 create-subnet --vpc-id your-vpc-id --cidr-block 10.0.1.0/24 --availability-zone your-availability-zone-1 --region your-region
+aws ec2 create-subnet --vpc-id your-vpc-id --cidr-block 10.0.2.0/24 --availability-zone your-availability-zone-2 --region your-region
+```
+
+Replace the placeholders with your specific values.
+
+2.    Create a security group for your RDS cluster:
+
+``` bash
+
+aws ec2 create-security-group --group-name your-rds-security-group --description "RDS security group" --vpc-id your-vpc-id --region your-region
+
+Replace your-rds-security-group with your desired security group name and your-vpc-id with the VPC ID created in step 1.
+```
+
+3. Modify the security group to allow traffic to the RDS cluster from your EKS worker nodes:
+
+```bash
+aws ec2 authorize-security-group-ingress --group-id your-rds-security-group-id --protocol tcp --port 5432 --cidr 10.0.0.0/16 --region your-region
+```
+
+Replace `your-rds-security-group-id` with the security group ID from step 2.
+
+5. Create an EKS cluster in the custom VPC using `eksctl`:
+
+```bash
+eksctl create cluster --name your-eks-cluster --region your-region --nodes 2 --vpc-cidr 10.0.0.0/16 --vpc-private-subnets subnet-1,subnet-2
+```
+
+Replace `your-eks-cluster` with your desired cluster name, `your-region` with the desired AWS region, and `subnet-1,subnet-2` with the subnet IDs created in step 1.
+
+In this configuration, the VPC has a CIDR block of `10.0.0.0/16`, which allows for 65,536 IP addresses. The subnets created in step 1 have CIDR blocks of `10.0.1.0/24` and `10.0.2.0/24`, each allowing for 256 IP addresses. The security group in step 3 is configured to allow traffic from the entire VPC (`10.0.0.0/16`).
+
+4. Create a YAML file for your Node.js application deployment, for example, `nodejs-deployment.yaml`:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodejs-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nodejs-app
+  template:
+    metadata:
+      labels:
+        app: nodejs-app
+    spec:
+      containers:
+      - name: nodejs-app
+        image: your-nodejs-image
+        ports:
+        - containerPort: 8080
+        env:
+        - name: DB_HOST
+          value: your-rds-cluster-endpoint
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: your-db-master-username
+        - name: DB_PASSWORD
+          value: your-db-master-password
+        - name: DB_NAME
+          value: your-db-name
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nodejs-app-service
+spec:
+  selector:
+    app: nodejs-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: LoadBalancer
+```
+
+Replace the placeholders with your specific values, such as the RDS cluster endpoint and database credentials.
+
+5. Apply the deployment and service configuration:
+
+```bash
+kubectl apply -f nodejs-deployment.yaml
+```
+
+This will create a Node.js deployment and expose the service as a LoadBalancer.
+
+6. To get the LoadBalancer URL, run:
+
+```bash
+kubectl get svc nodejs-app-service
+```
+
+Your Node.js application should now be running on the EKS cluster and connected to the RDS cluster.

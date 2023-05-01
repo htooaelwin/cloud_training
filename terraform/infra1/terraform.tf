@@ -111,6 +111,11 @@ resource "aws_lb" "dev_elbv2" {
   tags = {
     Environment = "production"
   }
+
+}
+
+output "lb_dns" {
+  value = aws_lb.dev_elbv2.dns_name
 }
 
 resource "aws_lb_target_group" "dev_web_target_group" {
@@ -199,7 +204,7 @@ resource "aws_autoscaling_group" "dev_web_autoscaling_group" {
   launch_configuration      = aws_launch_configuration.dev_web_lc.name
   min_size                  = 2
   max_size                  = 4
-  desired_capacity          = 5
+  desired_capacity          = 2
   health_check_grace_period = 300
   health_check_type         = "EC2"
   termination_policies      = ["OldestInstance", "Default"]

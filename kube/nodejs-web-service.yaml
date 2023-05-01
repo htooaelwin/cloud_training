@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodejs-webserver
+  labels:
+    app: nodejs-webserver
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nodejs-webserver
+  template:
+    metadata:
+      labels:
+        app: nodejs-webserver
+    spec:
+      containers:
+      - name: nodejs-webserver
+        image: node:14-alpine
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "8080"
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "256Mi"
+          requests:
+            cpu: "250m"
+            memory: "128Mi"
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - mountPath: /app
+          name: app-volume
+        workingDir: /app
+      volumes:
+      - name: app-volume
+        configMap:
+          name: nodejs-webserver-config
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nodejs-webserver-config
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Node.js Web Server - Example Homepage</title>
+    </head>
+    <body>
+      <h1>Welcome to the Example Homepage</h1>
+      <p>This is a simple Node.js web server deployed using Kubernetes.</p>
+    </body>
+    </html>
+  server.js: |
+    const http = require('http');
+    const fs = require('fs');
+    const path = require('path');
+
+    const hostname = '0.0.0.0';
+    const port = process.env.PORT || 8080;
+
+    const server = http.createServer((req, res) => {
+      if (req.url === '/') {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'text/html');
+        fs.readFile(path.join(__dirname, 'index.html'), (err, data) => {
+          if (err) {
+            res.statusCode = 500;
+            res.end(`Error: ${err.message}`);
+          } else {
+            res.end(data);
+          }
+        });
+      } else {
+        res.statusCode = 404;
+        res.end('Not Found');
+      }
+    });
+
+    server.listen(port, hostname, () => {
+      console.log(`Server running at http://${hostname}:${port}/`);
+    });
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: nodejs-web-service
+spec:
+  selector:
+    app: nodejs-webserver
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  type: LoadBalancer

@@ -1,0 +1,72 @@
+When using Kubernetes on bare-metal servers, the built-in LoadBalancer type doesn't work out of the box, as it relies on the underlying cloud provider to provision a load balancer. However, there are alternative solutions you can use to expose your services, such as MetalLB or external load balancers like HAProxy or NGINX.
+
+Here's an example using MetalLB:
+
+1. Install MetalLB on your Kubernetes cluster by applying the required manifests:
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.11.0/manifests/namespace.yaml
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.11.0/manifests/metallb.yaml
+
+# If you're using a cluster with RBAC, apply the following as well:
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.11.0/manifests/rbac.yaml
+```
+
+2. Configure MetalLB with a range of IP addresses that it can use for services. Create a ConfigMap, for example:
+
+```yaml
+# metallb-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: metallb-system
+  name: config
+data:
+  config: |
+    address-pools:
+    - name: default
+      protocol: layer2
+      addresses:
+      - 192.168.1.240/28
+```
+
+Replace the IP range with one suitable for your network. Apply the configuration:
+
+```bash
+kubectl apply -f metallb-config.yaml
+```
+
+3. Expose your service with a LoadBalancer. You can use the Apache service example from before, and MetalLB will automatically assign an IP address from the specified range:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: apache-service
+spec:
+  selector:
+    app: apache
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: LoadBalancer
+```
+
+Apply the configuration:
+
+```bash
+kubectl apply -f apache-service.yaml
+```
+
+4. Check the assigned IP address with the following command:
+
+```bash
+kubectl get svc apache-service
+```
+
+This will show you the external IP address assigned by MetalLB. You can then use this IP address to access your service.
+
+Keep in mind that you might need to adjust your network and firewall settings to allow traffic to and from the assigned IP addresses.
+
+Another option would be to set up an external load balancer like HAProxy or NGINX outside the Kubernetes cluster, configure it to distribute traffic to your worker nodes, and use NodePort services to expose your applications. However, this requires more manual configuration and maintenance.
