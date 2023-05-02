@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: apache
-        image: httpd:2.4
+        image: htooayelwin/php-apache:1.0.1
         ports:
         - containerPort: 80
 ---
@@ -31,3 +31,4 @@ spec:
       port: 80
       targetPort: 80
   type: LoadBalancer
+  loadBalancerIP: 192.168.100.102

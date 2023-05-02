@@ -160,6 +160,7 @@ resource "kubernetes_deployment" "nodejs_app" {
 
           command = ["/bin/sh", "-c"]
           args    = ["npm install -g http-server && echo '${MESSAGE}' > index.html && http-server -p 8080"]
+
         }
       }
     }

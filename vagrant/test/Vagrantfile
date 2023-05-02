@@ -1,0 +1,24 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/bionic64"
+
+  config.vm.provider "virtualbox" do |v|
+    v.memory = 1024
+    v.cpus = 1
+    #v.customize ["modifyvm", :id, "--nic1", "none"]
+    
+  end
+  
+
+  config.vm.define "k8s" do |master|
+    master.vm.hostname = "k8s"
+    master.vm.network "public_network", ip: "192.168.100.190", bridge: "wlp3s0", netmask: "255.255.255.0"
+    #master.vm.network "public_network", bridge: "wlp3s0"
+    master.vm.network "private_network", ip: "192.168.56.56"
+    #master.ssh.host = "192.168.56.56"
+    #master.customize ["modifyvm", :id, "--nic1", "none"]
+
+  end
+end

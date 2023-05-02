@@ -62,16 +62,6 @@ resource "aws_lb" "my_private_alb" {
   }
 }
 
-resource "aws_lb_listener" "example" {
-  load_balancer_arn = aws_lb.my_private_alb.arn
-  port              = 3306
-  protocol          = "TCP"
-
-  default_action {
-    target_group_arn = aws_lb_target_group.example.arn
-    type             = "forward"
-  }
-}
 
 resource "aws_lb_target_group" "rds" {
   name_prefix = "rds-tg-"
@@ -88,6 +78,83 @@ resource "aws_lb_target_group" "rds" {
   }
 }
 
+resource "aws_lb_listener" "example" {
+  load_balancer_arn = aws_lb.my_private_alb.arn
+  port              = 3306
+  protocol          = "TCP"
+
+  default_action {
+    target_group_arn = aws_lb_target_group.rds.arn
+    type             = "forward"
+  }
+}
+
+#security group in Terraform for an RDS cluster:
+resource "aws_security_group" "rds_cluster_sg" {
+  name_prefix = "rds-cluster-sg-"
+  vpc_id      = "${var.vpc_id}"
+
+  ingress {
+    from_port   = 3306
+    to_port     = 3306
+    protocol    = "tcp"
+    security_groups = [
+      "${aws_security_group.private_elb_sg.id}",
+      "${aws_db_subnet_group.rds_cluster_subnets.id}"
+    ]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+# create RDS 
+resource "aws_rds_cluster" "rds_cluster" {
+  engine                        = "aurora"
+  engine_version                = "5.7.mysql_aurora.2.08.1"
+  database_name                 = "mydatabase"
+  master_username               = "admin"
+  master_password               = "password"
+  backup_retention_period       = 7
+  preferred_backup_window       = "03:00-04:00"
+  skip_final_snapshot           = true
+  deletion_protection           = false
+  availability_zones            = ["us-west-2a", "us-west-2b", "us-west-2c", "us-west-2d", "us-west-2e"]
+  db_subnet_group_name          = aws_db_subnet_group.rds_subnet_group.name
+  vpc_security_group_ids        = [aws_security_group.rds_security_group.id]
+  scaling_configuration         = {
+    auto_pause                  = true
+    max_capacity                = 64
+    min_capacity                = 2
+    seconds_until_auto_pause    = 300
+    timeout_action              = "ForceApplyCapacityChange"
+  }
+  replication_source_identifier = aws_rds_cluster.replication_source_identifier.id
+
+  tags = {
+    Name = "rds-cluster"
+  }
+}
+
+resource "aws_rds_cluster_instance" "rds_cluster_instance" {
+  count             = 5
+  identifier        = "rds-instance-${count.index + 1}"
+  cluster_identifier = aws_rds_cluster.rds_cluster.id
+  instance_class    = "db.r5.large"
+  engine            = "aurora"
+  engine_version    = "5.7.mysql_aurora.2.08.1"
+  subnet_group_name = aws_db_subnet_group.rds_subnet_group.name
+  publicly_accessible = false
+
+  tags = {
+    Name = "rds-instance-${count.index + 1}"
+  }
+}
+
 
 resource "aws_lb_target_group_attachment" "rds" {
   target_group_arn = aws_lb_target_group.rds.arn
@@ -97,37 +164,4 @@ resource "aws_lb_target_group_attachment" "rds" {
   port      = 3306
 }
 
-resource "aws_rds_cluster_instance" "example" {
-  count            = 5
-  identifier       = "example-${count.index + 1}"
-  cluster_identifier = aws_rds_cluster.example.id
-  instance_class   = "db.t3.small"
-  engine           = "mysql"
-  engine_version   = "8.0"
-  publicly_accessible = false
-  vpc_security_group_ids = [aws_security_group.rds.id]
 
-  subnet_group_name = aws_db_subnet_group.example.name
-
-  tags = {
-    Name = "RDS Cluster Instance"
-  }
-}
-
-resource "aws_rds_cluster" "example_rds_cluster" {
-  cluster_identifier = "example-rds-cluster"
-  engine             = "aurora-mysql"
-  engine_version     = "5.7.12"
-  database_name      = "example_db"
-  master_username    = "admin"
-  master_password    = "adminpassword"
-  db_subnet_group_name = aws_db_subnet_group.example_db_subnet_group.name
-  vpc_security_group_ids = [
-    aws_security_group.example_sg.id
-  ]
-  scaling_configuration {
-    auto_pause = true
-    max_capacity = 5
-    min_capacity = 2
-  }
-}

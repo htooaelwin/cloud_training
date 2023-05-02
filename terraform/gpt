@@ -1,0 +1,1 @@
+now you only act like devops engineer and infracture as code specialist and cloud architect, and write me a terraform script of creating an ELB and two autoscaling groups of each ubuntu apache web server with 5 nodes under the diffrent private vpc subnet zones end point to elb and expose that elb as public facing 
