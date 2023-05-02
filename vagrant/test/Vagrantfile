@@ -8,6 +8,7 @@ Vagrant.configure("2") do |config|
     v.memory = 1024
     v.cpus = 1
     #v.customize ["modifyvm", :id, "--nic1", "none"]
+    #v.customize ["modifyvm", :id, "--natpf1", "delete", "ssh"]
     
   end
   
@@ -16,7 +17,7 @@ Vagrant.configure("2") do |config|
     master.vm.hostname = "k8s"
     master.vm.network "public_network", ip: "192.168.100.190", bridge: "wlp3s0", netmask: "255.255.255.0"
     #master.vm.network "public_network", bridge: "wlp3s0"
-    master.vm.network "private_network", ip: "192.168.56.56"
+    master.vm.network "private_network", ip: "192.168.56.56", virtualbox__intnet: "intnet2"
     #master.ssh.host = "192.168.56.56"
     #master.customize ["modifyvm", :id, "--nic1", "none"]
 

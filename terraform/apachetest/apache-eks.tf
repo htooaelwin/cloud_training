@@ -1,0 +1,194 @@
+provider "aws" {
+  region = "us-west-2"
+}
+
+locals {
+  cluster_name = "example-eks"
+}
+
+resource "aws_eks_cluster" "this" {
+  name     = local.cluster_name
+  role_arn = aws_iam_role.eks_cluster.arn
+
+  vpc_config {
+    subnet_ids = aws_subnet.private.*.id
+  }
+
+  depends_on = [
+    aws_security_group_rule.cluster
+  ]
+}
+
+resource "aws_iam_role" "eks_cluster" {
+  name = "eks-cluster"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "eks.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_vpc" "this" {
+  cidr_block = "10.0.0.0/16"
+
+  tags = {
+    Name = "example-vpc"
+  }
+}
+
+resource "aws_subnet" "private" {
+  count = 2
+
+  cidr_block = "10.0.${count.index + 1}.0/24"
+  vpc_id     = aws_vpc.this.id
+
+  tags = {
+    Name = "private${count.index}"
+  }
+}
+
+resource "aws_security_group" "cluster" {
+  name_prefix = "eks-cluster"
+  vpc_id      = aws_vpc.this.id
+}
+
+resource "aws_security_group_rule" "cluster" {
+  security_group_id = aws_security_group.cluster.id
+
+  type        = "ingress"
+  from_port   = 0
+  to_port     = 65535
+  protocol    = "tcp"
+  cidr_blocks = ["10.0.0.0/8"]
+}
+
+module "eks" {
+  source = "terraform-aws-modules/eks/aws"
+
+  cluster_name = local.cluster_name
+  subnet_ids      = aws_subnet.private.*.id
+
+  tags = {
+    Terraform = "true"
+    Example   = "eks-apache-service"
+  }
+
+  vpc_id = aws_vpc.this.id
+
+  kubeconfig_aws_authenticator_additional_args = ["-r", "us-west-2"]
+
+  kubeconfig_name = local.cluster_name
+
+  node_groups_defaults = {
+    ami_type = "AL2_x86_64"
+  }
+
+  node_groups = {
+    eks_nodes = {
+      desired_capacity = 2
+      max_capacity     = 2
+      min_capacity     = 1
+
+      instance_type = "t2.small"
+      additional_tags = {
+        Terraform = "true"
+        Example   = "eks-apache-service"
+      }
+    }
+  }
+
+  write_kubeconfig      = true
+  config_output_path    = "./kubeconfig_${local.cluster_name}"
+  manage_aws_auth       = true
+}
+
+locals {
+  kubeconfig_path = abspath("./kubeconfig_${local.cluster_name}")
+}
+
+resource "kubernetes_namespace" "example" {
+  metadata {
+    name = "example"
+  }
+
+  depends_on = [module.eks]
+}
+
+resource "kubernetes_deployment" "apache_app" {
+  metadata {
+    name      = "apache-app"
+    namespace = kubernetes_namespace.example.metadata.0.name
+  }
+
+  spec {
+    replicas = 2
+    
+    selector {
+      match_labels = {
+        app = "apache-app"
+      }
+    }
+
+    template {
+      metadata {
+        labels = {
+          app = "apache-app"
+        }
+      }
+
+      spec {
+        container {
+          name  = "apache-app"
+          image = "htooayelwin/php-apache:1.0.1"
+
+          port {
+            container_port = 80
+          }
+/*
+          env {
+            name  = "MESSAGE"
+            value = "Hello from the Node.js app!"
+          }
+
+          command = ["/bin/sh", "-c"]
+          args    = ["npm install -g http-server && echo '${MESSAGE}' > index.html && http-server -p 8080"]
+*/
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_service" "apache_app" {
+  metadata {
+    name      = "apache-app"
+    namespace = kubernetes_namespace.example.metadata.0.name
+  }
+
+  spec {
+    selector = {
+      app = "apache-app"
+    }
+
+    port {
+      port        = 80
+      target_port = 80
+    }
+
+    type = "LoadBalancer"
+  }
+
+  depends_on = [kubernetes_deployment.apache_app]
+}
+
+output "apache_app_url" {
+  value = kubernetes_service.apache_app.status.0.load_balancer.0.ingress.0.hostname
+}
