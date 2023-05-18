@@ -6,3 +6,23 @@ curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add
 echo "deb http://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
 sudo apt update
 sudo apt install -y kubeadm kubelet kubectl
+
+
+# # Update package lists and install necessary dependencies
+#     sudo apt-get update
+#     sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+
+#     # Add the Docker GPG key
+#     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+
+#     # Add the Docker repository
+#     sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+
+#     # Update package lists again to include the new Docker repository
+#     sudo apt-get update
+
+#     # Install Docker
+#     sudo apt-get install -y docker-ce
+
+#     # Add the 'vagrant' user to the 'docker' group to allow non-root Docker access
+#     sudo usermod -aG docker vagrant

@@ -1,0 +1,123 @@
+There are several methods to manage remote servers that are on a private network. The most common methods include using a Virtual Private Network (VPN), SSH tunneling, or a reverse SSH tunnel.
+
+However, it's important to note that these methods involve significant security considerations. You should ensure that any method you choose is properly secured, and that you have the necessary permissions to implement it.
+
+**1. Virtual Private Network (VPN):**
+A VPN extends a private network across a public network, and enables users to send and receive data across shared or public networks as if their computing devices were directly connected to the private network. By connecting to your office's network via a VPN, your home computer or cloud VPS will appear as if it's a part of the local network, allowing you to manage the servers as if you were physically present. This requires setting up a VPN server on the office network and a VPN client on your home computer or cloud VPS.
+
+**2. SSH Tunneling:**
+SSH tunneling allows you to forward traffic from one network through an encrypted SSH connection. With SSH tunneling, you could, for example, securely use a remote instance of a graphical application.
+
+**3. Reverse SSH Tunnel:**
+A reverse SSH tunnel allows you to connect to a remote system through a firewall by having the remote system connect out to your system first. This is useful when the remote system is behind a firewall or NAT and you can't open or forward the necessary ports.
+
+Given that your office servers can access the internet, the Reverse SSH Tunnel is the easiest method to setup without needing any network configuration changes. Here's a basic setup:
+
+**Step 1: Setup SSH keys for password-less login**
+
+On your home machine or cloud VPS, generate an SSH key pair, if you haven't already:
+
+```bash
+ssh-keygen
+```
+
+Copy the public key to the remote server:
+
+```bash
+ssh-copy-id user@remote-server
+```
+
+**Step 2: Create the Reverse SSH Tunnel**
+
+On the remote server, create the reverse SSH tunnel that connects back to your home machine or cloud VPS:
+
+```bash
+ssh -fN -R 2222:localhost:22 user@home-ip-address
+```
+
+This command sets up a reverse SSH tunnel by opening port 2222 on the home machine or cloud VPS (the host) that forwards to port 22 on the remote server (the guest). 
+
+**Step 3: Connect to the Remote Server**
+
+On your home machine or cloud VPS, you can now SSH into the remote server via the reverse tunnel:
+
+```bash
+ssh -p 2222 user@localhost
+```
+
+You're now connected to the remote server and can administer it as needed. 
+
+Remember to replace `user@home-ip-address` with your actual username and IP address, and `user@remote-server` with the username and hostname/IP of the remote server.
+
+**Keep the Tunnel Alive:**
+
+Since internet connections and SSH sessions may drop, and servers may restart, it's important to ensure the reverse SSH tunnel is resilient. This can be accomplished using `autossh` to automatically restart SSH sessions and tunnels:
+
+Install `autossh` on the remote server:
+
+```bash
+sudo apt update
+sudo apt install autossh
+```
+
+Then use `autossh` to create the reverse SSH tunnel:
+
+```bash
+autossh -f -M 0 -o "ServerAliveInterval 30" -o "ServerAliveCountMax 3" -R 2222:localhost:22 user@home-ip-address
+```
+
+The `ServerAliveInterval` and `ServerAliveCountMax` options will ensure that the connection is live and responsive, otherwise, it will be restarted.
+
+**Security Considerations:**
+While a reverse SSH tunnel will grant you access to your office servers, there are important security considerations:
+
+1. **Encryption:** SSH provides strong encryption out of the box, which protects your data from being read in transit.
+
+2. **Authentication:** Using SSH keys for authentication is much more secure than using passwords. Be sure to protect your private keys.
+
+3. **Firewall Rules:** Ensure that the port you use for the reverse SSH tunnel (2222 in the example) is protected by a firewall, and only allow connections from trusted IP addresses.
+
+4. **Monitoring:** Regularly monitor your systems and networks for any unusual activity. Keep your systems updated and patched.
+
+5. **Minimal Exposure:** Only open the access when you need it and close it when you're done. This can be automated with cron jobs or systemd timers.
+
+6. **Permission:** Make sure you have the necessary permissions from the appropriate parties or authorities in your organization before setting up this kind of access.
+
+**Automation:**
+
+To make the tunnel setup persistent across reboots, you can create a cron job or a systemd service that starts the tunnel at boot time. 
+
+Here's how you might create a systemd service:
+
+Create a new systemd service file:
+
+```bash
+sudo nano /etc/systemd/system/ssh-reverse-tunnel.service
+```
+
+In the editor, add the following:
+
+```bash
+[Unit]
+Description=SSH reverse tunnel service
+After=network.target
+
+[Service]
+User=user
+ExecStart=/usr/bin/autossh -N -R 2222:localhost:22 user@home-ip-address
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start the service:
+
+```bash
+sudo systemctl enable ssh-reverse-tunnel.service
+sudo systemctl start ssh-reverse-tunnel.service
+```
+
+Remember to replace `user` and `user@home-ip-address` with your actual username and home IP address.
+
+This setup is a relatively straightforward way to gain remote access to your office servers. However, it's essential to maintain the security of your systems and networks while doing so. Always follow best practices and seek approval from relevant parties before implementing changes to your network configuration.

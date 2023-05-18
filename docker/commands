@@ -1,0 +1,20 @@
+mkdir nodejs-app1
+mv hostname-ip.js nodejs-app1/
+cd nodejs-app1/
+cd ..
+touch nodeinstall.sh
+sudo bash nodeinstall.sh 
+cd nodejs-app1/
+ls
+node hostname-ip.js 
+ll
+docker build -t hostname-ip-webapp .
+docker images hostname-ip-webapp
+docker images 
+docker run -d -p 3000:3000 --name my-hostname-ip-webapp hostname-ip-webapp
+docker container 
+docker container ls
+docker inspect my-hostname-ip-webapp 
+docker inspect hostname-ip-webapp:latest
+docker tag hostname-ip-webapp htooayelwin/hostname-ip-webapp:1.0.1
+docker push htooayelwin/hostname-ip-webapp:1.0.1 

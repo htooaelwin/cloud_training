@@ -2,24 +2,64 @@
 # vi: set ft=ruby :
 
 Vagrant.configure("2") do |config|
+  # Use Ubuntu Bionic 18.04 base box
   config.vm.box = "ubuntu/bionic64"
 
-  config.vm.provider "virtualbox" do |v|
-    v.memory = 1024
-    v.cpus = 1
-    #v.customize ["modifyvm", :id, "--nic1", "none"]
-    #v.customize ["modifyvm", :id, "--natpf1", "delete", "ssh"]
+  # Configure the VM's hostname
+  config.vm.hostname = "ubuntu-docker"
+  # config.vm.provider "virtualbox" do |v|
+  #   v.memory = 1024
+  #   v.cpus = 1
+  # end
+  # Set up a private network for easy host-to-guest communication
+  # config.vm.network "private_network", type: "dhcp"
+
+  # Provision the VM with Docker using a shell script
+  config.vm.provision "shell", inline: <<-SHELL
+    # Update package lists and install necessary dependencies
+    sudo apt-get update
+    sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+
+    # Add the Docker GPG key
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+
+    # Add the Docker repository
+    sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+
+    # Update package lists again to include the new Docker repository
+    sudo apt-get update
+
+    # Install Docker
+    sudo apt-get install -y docker-ce
+
+    # Add the 'vagrant' user to the 'docker' group to allow non-root Docker access
+    sudo usermod -aG docker vagrant
+  SHELL
+end
+
+
+# # -*- mode: ruby -*-
+# # vi: set ft=ruby :
+
+# Vagrant.configure("2") do |config|
+#   config.vm.box = "ubuntu/bionic64"
+
+#   config.vm.provider "virtualbox" do |v|
+#     v.memory = 1024
+#     v.cpus = 2
+#     #v.customize ["modifyvm", :id, "--nic1", "none"]
+#     #v.customize ["modifyvm", :id, "--natpf1", "delete", "ssh"]
     
-  end
+#   end
   
 
-  config.vm.define "k8s" do |master|
-    master.vm.hostname = "k8s"
-    master.vm.network "public_network", ip: "192.168.100.190", bridge: "wlp3s0", netmask: "255.255.255.0"
-    #master.vm.network "public_network", bridge: "wlp3s0"
-    master.vm.network "private_network", ip: "192.168.56.56", virtualbox__intnet: "intnet2"
-    #master.ssh.host = "192.168.56.56"
-    #master.customize ["modifyvm", :id, "--nic1", "none"]
+#   config.vm.define "Docker" do |master|
+#     master.vm.hostname = "Docker"
+#     # master.vm.network "public_network", ip: "192.168.100.190", bridge: "wlp3s0", netmask: "255.255.255.0"
+#     # #master.vm.network "public_network", bridge: "wlp3s0"
+#     # master.vm.network "private_network", ip: "192.168.56.56", virtualbox__intnet: "intnet2"
+#     # #master.ssh.host = "192.168.56.56"
+#     # #master.customize ["modifyvm", :id, "--nic1", "none"]
 
-  end
-end
+#   end
+# end

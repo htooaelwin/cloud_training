@@ -1,0 +1,18 @@
+sudo nano /etc/systemd/system/ssh-reverse-tunnel.service
+
+
+[Unit]
+Description=SSH reverse tunnel service
+After=network.target
+
+[Service]
+User=user
+ExecStart=/usr/bin/autossh -M 0 -o "ServerAliveInterval 30" -o "ServerAliveCountMax 3" -R 2222:localhost:22 root@178.128.97.154 -f -N
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
+
+sudo systemctl enable ssh-reverse-tunnel.service
+sudo systemctl start ssh-reverse-tunnel.service

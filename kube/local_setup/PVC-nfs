@@ -1,0 +1,101 @@
+Yes, in Kubernetes, you can use Network File System (NFS) as a storage option for Persistent Volumes (PVs). Here's a step-by-step guide on how you can set this up:
+
+**Prerequisites:**
+
+- You have a running Kubernetes cluster.
+- You have an NFS server running and the server is accessible from your Kubernetes nodes.
+
+**Step 1: Set up an NFS server**
+
+If you haven't set up your NFS server yet, you would need to do that first. This process can vary depending on your operating system. After setting up the NFS server, create a directory that you want to share with your Kubernetes cluster.
+
+**Step 2: Install the NFS client on Kubernetes nodes**
+
+You need to ensure the NFS client is installed on all nodes in your Kubernetes cluster because the pod could be scheduled on any node.
+
+For Ubuntu/Debian:
+
+```bash
+sudo apt-get install nfs-common
+```
+
+For CentOS/RHEL:
+
+```bash
+sudo yum install nfs-utils
+```
+
+**Step 3: Create a Persistent Volume using NFS**
+
+Now, you can create a Persistent Volume (PV) that uses your NFS share. Here is an example of a PV configuration:
+
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-pv
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs
+  nfs:
+    path: /path/to/your/nfs/share
+    server: nfs-server.yourdomain.com
+```
+
+This YAML defines a Persistent Volume named "nfs-pv" with a size of 10Gi, a storage class of "nfs", and access mode "ReadWriteMany", meaning the volume can be read and written by many nodes. Replace "/path/to/your/nfs/share" and "nfs-server.yourdomain.com" with your actual NFS path and server.
+
+Apply this configuration with `kubectl apply -f pv.yaml`.
+
+**Step 4: Create a Persistent Volume Claim**
+
+Next, you create a Persistent Volume Claim (PVC), which allows a pod to use the storage in the PV. Here is an example of a PVC configuration:
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs
+  resources:
+    requests:
+      storage: 10Gi
+```
+
+This configuration creates a PVC named "nfs-pvc" that requests 10Gi of storage from the "nfs" storage class. 
+
+Apply this configuration with `kubectl apply -f pvc.yaml`.
+
+**Step 5: Use the PVC in a Pod**
+
+Finally, you can now use the PVC in a pod. Here is an example of a pod configuration that uses the PVC:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nfs-pod
+spec:
+  containers:
+  - name: app
+    image: nginx
+    volumeMounts:
+    - name: nfs-storage
+      mountPath: /usr/share/nginx/html
+  volumes:
+  - name: nfs-storage
+    persistentVolumeClaim:
+      claimName: nfs-pvc
+```
+
+In this YAML, we create a pod running the nginx image, and it mounts the PVC "nfs-pvc" at "/usr/share/nginx/html". 
+
+Apply this configuration with `kubectl apply -f pod.yaml`.
+
+Now your pod is using an NFS-backed Persistent Volume for storage. Any data written to "/usr/share/nginx/html" in the pod will be stored on your NFS server and will survive the pod being

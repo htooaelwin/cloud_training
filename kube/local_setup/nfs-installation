@@ -1,0 +1,97 @@
+Network File System (NFS) is a distributed file system protocol that allows you to share directories over a network. With NFS, you can mount remote directories on your system and work with the files on the remote machine as if they were local files.
+
+Here are the steps to install NFS on Ubuntu and mount an NFS share.
+
+**On the NFS Server:**
+
+1. **Install NFS server packages.**
+
+    Open a terminal and execute the following command to install the NFS Kernel Server:
+
+    ```bash
+    sudo apt update
+    sudo apt install nfs-kernel-server
+    ```
+
+2. **Create the directory to be shared.**
+
+    Next, you will need to create a directory to be shared with the client machines. You can create it anywhere, but in this example, we'll create it in the `/mnt` directory.
+
+    ```bash
+    sudo mkdir /mnt/sharedfolder
+    ```
+
+    Change `sharedfolder` to the name you prefer.
+
+3. **Assign server access to client(s).**
+
+    Edit the `/etc/exports` file to specify the directory to be shared and the details of the clients allowed to access it.
+
+    ```bash
+    sudo nano /etc/exports
+    ```
+
+    Add a new line to the file, with the format `<directory> <client>(<options>)`, replacing `<directory>`, `<client>`, and `<options>` with your own details. For example:
+
+    ```bash
+    /mnt/sharedfolder 192.168.1.0/24(rw,sync,no_subtree_check)
+    ```
+
+    This line means: the directory `/mnt/sharedfolder` is accessible to clients on the 192.168.1.0/24 network, with read/write access. The options `sync` and `no_subtree_check` improve the reliability of the connection.
+
+4. **Export the shared directory.**
+
+    After you've set up the `/etc/exports` file, you can make the server export the shared directories with the following command:
+
+    ```bash
+    sudo exportfs -a
+    ```
+
+5. **Ensure the NFS service is running.**
+
+    Finally, restart the NFS Kernel Server to make sure everything runs correctly:
+
+    ```bash
+    sudo systemctl restart nfs-kernel-server
+    ```
+
+**On the NFS Client:**
+
+1. **Install NFS client packages.**
+
+    Open a terminal and execute the following command to install the necessary NFS client packages:
+
+    ```bash
+    sudo apt update
+    sudo apt install nfs-common
+    ```
+
+2. **Create a mount point for the NFS host's shared directory.**
+
+    You need a directory to serve as the "mount point" for the NFS shared directory. You can create this anywhere, but in this example, we'll create it in the `/mnt` directory.
+
+    ```bash
+    sudo mkdir /mnt/sharedfolder
+    ```
+
+    Again, change `sharedfolder` to the name you prefer.
+
+3. **Mount the NFS shared directory.**
+
+    Now you can mount the NFS shared directory from the server to your client machine's mount point with this command:
+
+    ```bash
+    sudo mount -t nfs <nfs-server-ip>:/mnt/sharedfolder /mnt/sharedfolder
+    ```
+
+    Replace `<nfs-server-ip>` with the IP address of the NFS server.
+
+4. **Check the mounted NFS share.**
+
+    You can confirm that the NFS share has been correctly mounted with the `df -h` command:
+
+    ```bash
+    df -h
+    ```
+
+Remember to replace the IP address, directory paths, and names according to your setup. The `/mnt/sharedfolder` directory and the `192.168.1.0/24` network
